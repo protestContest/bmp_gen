@@ -4,6 +4,7 @@ defmodule BmpGen do
   """
 
   def read_file(filename) do
+    IO.puts("Reading")
     {:ok, image} = Imagineer.load(filename)
     image
   end
