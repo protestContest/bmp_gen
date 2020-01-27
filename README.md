@@ -14,16 +14,21 @@ Images are converted to four shades of gray with Floyd-Steinberg dithering.
 The input file _must_ be an 800x600 PNG. You can generate the executable by
 running `mix escript build`.
 
+## Example
+
+![Output example](https://raw.githubusercontent.com/protestContest/bmp_gen/master/example.bmp)
+
 ## Bonus Info
 
 BMP files must be in a very specific format variant:
 
-1. File header (14 bytes):
+File header (14 bytes):
   - 2B: "BM"
   - 4B: 240070, size of file
   - 4B: 0
   - 4B: 70, start of pixel array
-2. DIB Header (40 bytes):
+
+DIB Header (40 bytes):
   - 4B: 40, header length
   - 4B: 800, image width
   - 4B: 600, image height
@@ -35,12 +40,14 @@ BMP files must be in a very specific format variant:
   - 4B: 0, vert res dummy
   - 4B: 4, number of colors
   - 4B: 0, no important colors
-3. Color table (16 bytes)
+
+Color table (16 bytes)
   - 4B: 0x00 0x00 0x00 0x00 (black)
   - 4B: 0x55 0x55 0x55 0x00 (dk gray)
   - 4B: 0xAA 0xAA 0xAA 0x00 (lt gray)
   - 4B: 0xFF 0xFF 0xFF 0xFF (white)
-4. Pixel array
+
+Pixel array
   - Every 4 bits is a pixel (1 byte = 2 pixels)
 
 More info about the BMP file format can be found [here](https://en.wikipedia.org/wiki/BMP_file_format)
