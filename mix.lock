@@ -1,0 +1,4 @@
+%{
+  "apex": {:hex, :apex, "1.0.0", "abf230314d35ca4c48a902f693247f190ad42fc14862b9c4f7dbb7077b21c20a", [:mix], [], "hexpm"},
+  "imagineer": {:hex, :imagineer, "0.3.3", "dcb170babf9003dcb9c636c3b6c1f73cd4cee84239bd2743039cced73a4c4c02", [:mix], [{:apex, "~>1.0.0", [hex: :apex, repo: "hexpm", optional: false]}], "hexpm"},
+}
