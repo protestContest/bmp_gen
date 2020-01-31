@@ -12,7 +12,7 @@ Images are converted to four shades of gray with Floyd-Steinberg dithering.
 ```
 
 The input file _must_ be an 800x600 PNG. You can generate the executable by
-running `mix escript build`.
+running `mix escript.build`.
 
 ## Example
 

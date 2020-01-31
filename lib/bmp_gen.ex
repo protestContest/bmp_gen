@@ -9,16 +9,16 @@ defmodule BmpGen do
     image
   end
 
-  def convert(infile, outfile) do
+  def convert(infile, outfile, method) do
     read_file(infile)
-    |> convert_pixels()
+    |> convert_pixels(method)
     |> write_file(outfile)
   end
 
-  defp convert_pixels(image) do
+  defp convert_pixels(image, method) do
     image.pixels
     |> grayscale(image.bit_depth)
-    |> dither()
+    |> dither(method)
     |> pack()
   end
 
@@ -33,11 +33,23 @@ defmodule BmpGen do
   defp grayscale(pixels, bit_depth) do
     IO.puts("Grayscaling")
     Enum.map(pixels, fn pixel_row ->
-      Enum.map(pixel_row, fn { red, green, blue } -> (red*0.299 + green*0.587 + blue*0.114) / num_colors(bit_depth) end)
+      pixel_row
+      |> Enum.map(fn pixel -> strip_alpha(pixel) end)
+      |> Enum.map(fn { red, green, blue } -> (red*0.299 + green*0.587 + blue*0.114) / num_colors(bit_depth) end)
     end)
   end
 
-  defp simple_dither(pixels) do
+  defp strip_alpha({ r, g, b, _a}), do: { r, g, b }
+  defp strip_alpha(pixel), do: pixel
+
+  defp dither(pixels, method) do
+    case method do
+      "threshhold" -> threshhold(pixels)
+      _ -> floyd_steinberg(pixels)
+    end
+  end
+
+  defp threshhold(pixels) do
     IO.puts("Dithering")
     Enum.map(pixels, fn pixel_row ->
       Enum.map(pixel_row, fn pixel ->
@@ -46,7 +58,7 @@ defmodule BmpGen do
     end)
   end
 
-  defp dither(pixels) do
+  defp floyd_steinberg(pixels) do
     IO.puts("Dithering")
     row_width = Enum.count(hd pixels)
 
@@ -62,7 +74,6 @@ defmodule BmpGen do
     row_width = Enum.count(pixel_row)
 
     { new_pixel_row, next_row_errors } = Enum.reduce(pixel_row, { [], row_error }, fn pixel, { outpixels, [ pixel_error | errors ] } ->
-      # require IEx; IEx.pry
       new_pixel = floor((pixel + pixel_error) * 4)/4
       new_error = pixel - new_pixel
 
@@ -83,10 +94,7 @@ defmodule BmpGen do
     Enum.reduce(pixels, "", fn pixel_row, bytes ->
       row_pairs = Enum.chunk_every(pixel_row, 2)
       Enum.reduce(row_pairs, "", fn [ first | [ last ] ], row_bytes ->
-        first_index = floor(first*4)
-        last_index = floor(last*4)
-
-        row_bytes <> <<first_index::4, last_index::4>>
+        row_bytes <> <<first::4, last::4>>
       end) <> bytes
     end)
   end
