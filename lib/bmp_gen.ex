@@ -120,7 +120,7 @@ defmodule BmpGen do
 
   defp pad_row(pixel_row) do
     pad_pixels = 8 - rem(Enum.count(pixel_row), 8)
-    pad = List.duplicate(0, pad_pixels)
+    pad = if pad_pixels < 8, do: List.duplicate(0, pad_pixels), else: []
     pixel_row ++ pad
   end
 
