@@ -16,15 +16,17 @@ defmodule BmpGen do
   end
 
   defp convert_pixels(image, method, num_colors) do
-    image.pixels
-    |> grayscale(image.bit_depth)
-    |> dither(method, num_colors)
-    |> pack()
+    pixels = image.pixels
+      |> grayscale(image.bit_depth)
+      |> dither(method, num_colors)
+      |> pack()
+
+    {image, pixels}
   end
 
-  def write_file(pixels, filename) do
+  def write_file({image, pixels}, filename) do
     IO.puts("Writing")
-    data = file_header() <> pixels
+    data = file_header(pixels, image) <> pixels
     {:ok, file} = File.open(filename, [:write])
     IO.binwrite(file, data)
     File.close(file)
@@ -40,6 +42,7 @@ defmodule BmpGen do
   end
 
   defp strip_alpha({ r, g, b, _a}), do: { r, g, b }
+  defp strip_alpha({ c }), do: { c, c, c }
   defp strip_alpha(pixel), do: pixel
 
   defp dither(pixels, method, num_colors) do
@@ -92,7 +95,10 @@ defmodule BmpGen do
   defp pack(pixels) do
     IO.puts("Packing")
     Enum.reduce(pixels, "", fn pixel_row, bytes ->
-      row_pairs = Enum.chunk_every(pixel_row, 2)
+      row_pairs = pixel_row
+        |> pad_row()
+        |> Enum.chunk_every(2)
+
       Enum.reduce(row_pairs, "", fn [ first | [ last ] ], row_bytes ->
         first_index = floor(first*4)
         last_index = floor(last*4)
@@ -105,8 +111,17 @@ defmodule BmpGen do
     :math.pow(2, bit_depth)
   end
 
-  defp file_header() do
-    <<0x42, 0x4D, 0xC6, 0xA9, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46, 0x00, 0x00, 0x00, 0x28, 0x00, 0x00, 0x00, 0x20, 0x03, 0x00, 0x00, 0x58, 0x02, 0x00, 0x00, 0x01, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x55, 0x55, 0x55, 0x00, 0xAA, 0xAA, 0xAA, 0x00, 0xFF, 0xFF, 0xFF, 0x00>>
+  defp file_header(pixels, image) do
+    size = byte_size(pixels) + 70
+    <<"BM">> <> <<size::32-little>> <> <<0::32-little>> <> <<70::32-little>>
+      <> <<40::32-little>> <> <<image.width::32-little>> <> <<image.height::32-little>> <> <<1::16-little>> <> <<4::16-little>> <> <<0::32-little>> <> <<0::32-little>> <> <<0::32-little>> <> <<0::32-little>> <> <<4::32-little>> <> <<0::32-little>>
+      <> <<0x00, 0x00, 0x00, 0x00>> <> <<0x55, 0x55, 0x55, 0x00>> <> <<0xAA, 0xAA, 0xAA, 0x00>> <> <<0xFF, 0xFF, 0xFF, 0x00>>
+  end
+
+  defp pad_row(pixel_row) do
+    pad_pixels = 8 - rem(Enum.count(pixel_row), 8)
+    pad = List.duplicate(0, pad_pixels)
+    pixel_row ++ pad
   end
 
 end
