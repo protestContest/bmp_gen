@@ -12,21 +12,21 @@ defmodule BmpGen do
   def convert(infile, outfile, method, num_colors) do
     read_file(infile)
     |> convert_pixels(method, num_colors)
-    |> write_file(outfile)
+    |> write_file(outfile, num_colors)
   end
 
   defp convert_pixels(image, method, num_colors) do
     pixels = image.pixels
       |> grayscale(image.bit_depth)
       |> dither(method, num_colors)
-      |> pack()
+      |> pack_bmp()
 
     {image, pixels}
   end
 
-  def write_file({image, pixels}, filename) do
+  def write_file({image, pixels}, filename, num_colors) do
     IO.puts("Writing")
-    data = file_header(pixels, image) <> pixels
+    data = file_header(pixels, image, num_colors) <> pixels
     {:ok, file} = File.open(filename, [:write])
     IO.binwrite(file, data)
     File.close(file)
@@ -77,7 +77,8 @@ defmodule BmpGen do
     row_width = Enum.count(pixel_row)
 
     { new_pixel_row, next_row_errors } = Enum.reduce(pixel_row, { [], row_error }, fn pixel, { outpixels, [ pixel_error | errors ] } ->
-      new_pixel = floor((pixel + pixel_error) * num_colors)/num_colors
+      new_pixel = threshhold_pixel(pixel + pixel_error, num_colors)
+      # IO.puts("#{pixel} + #{pixel_error} -> #{new_pixel}")
       new_error = pixel - new_pixel
 
       new_errors = errors ++ [0]
@@ -92,7 +93,15 @@ defmodule BmpGen do
     { new_pixel_row, next_row_errors }
   end
 
-  defp pack(pixels) do
+  defp threshhold_pixel(pixel, num_colors) do
+    if num_colors == 2 do
+      if pixel > 0.5, do: 1, else: 0
+    else
+      floor(pixel * num_colors)/num_colors
+    end
+  end
+
+  defp pack_bmp(pixels) do
     IO.puts("Packing")
     Enum.reduce(pixels, "", fn pixel_row, bytes ->
       row_pairs = pixel_row
@@ -100,8 +109,8 @@ defmodule BmpGen do
         |> Enum.chunk_every(2)
 
       Enum.reduce(row_pairs, "", fn [ first | [ last ] ], row_bytes ->
-        first_index = floor(first*4)
-        last_index = floor(last*4)
+        first_index = first
+        last_index = last
         row_bytes <> <<first_index::4, last_index::4>>
       end) <> bytes
     end)
@@ -111,11 +120,19 @@ defmodule BmpGen do
     :math.pow(2, bit_depth)
   end
 
-  defp file_header(pixels, image) do
+  defp file_header(pixels, image, num_colors) do
     size = byte_size(pixels) + 70
     <<"BM">> <> <<size::32-little>> <> <<0::32-little>> <> <<70::32-little>>
       <> <<40::32-little>> <> <<image.width::32-little>> <> <<image.height::32-little>> <> <<1::16-little>> <> <<4::16-little>> <> <<0::32-little>> <> <<0::32-little>> <> <<0::32-little>> <> <<0::32-little>> <> <<4::32-little>> <> <<0::32-little>>
-      <> <<0x00, 0x00, 0x00, 0x00>> <> <<0x55, 0x55, 0x55, 0x00>> <> <<0xAA, 0xAA, 0xAA, 0x00>> <> <<0xFF, 0xFF, 0xFF, 0x00>>
+      <> color_table(num_colors)
+  end
+
+  defp color_table(num_colors) do
+    if (num_colors == 2) do
+      <<0x00, 0x00, 0x00, 0x00>> <> <<0xFF, 0xFF, 0xFF, 0x00>> <> <<0x55, 0x55, 0x55, 0x00>> <> <<0xAA, 0xAA, 0xAA, 0x00>>
+    else
+      <<0x00, 0x00, 0x00, 0x00>> <> <<0x55, 0x55, 0x55, 0x00>> <> <<0xAA, 0xAA, 0xAA, 0x00>> <> <<0xFF, 0xFF, 0xFF, 0x00>>
+    end
   end
 
   defp pad_row(pixel_row) do
